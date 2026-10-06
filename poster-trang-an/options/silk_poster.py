@@ -24,15 +24,15 @@ SPECS = {
               head=("Nº 01", "TRÀNG AN  ·  1010", "21°01'N  105°51'E"),
               side=("THĂNG LONG  ·  ĐÔNG ĐÔ  ·  HÀ NỘI", "TIẾNG ĐÀN  ·  HOA SEN  ·  VẦNG NGUYỆT"),
               mask=dict(inset=0.05, blur=0.09, roughness=0.7, fade_top=0.12, fade_bottom=0.2, fade_x=0.1, seed=3)),
-    "A": dict(name="A-ho-guom", art="ho-guom.png", crop=(0, 0.22, 1, 1), tone=(0.1, 0.03, 0.9, 0.15),
-              bottom=(222, 228, 234), glow=(246, 246, 244), layout="title-top", width=1560,
+    "A": dict(name="A-ho-guom", art="ho-guom.png", crop=(0, 0.24, 1, 0.99), tone=(0.1, 0.03, 0.9, 0.2),
+              bottom=(222, 228, 234), glow=(246, 246, 244), layout="title-top", width=2140, top=1290,
               head=("Nº 02", "HỒ HOÀN KIẾM  ·  RẰM THÁNG TÁM", ""),
-              mask=dict(inset=0.04, blur=0.09, roughness=0.7, fade_top=0.2, fade_bottom=0.12, fade_x=0.12, seed=5)),
-    "B": dict(name="B-pho-co", art="ban-cong.png", crop=(0, 0.22, 1, 1), tone=(0.1, 0.03, 0.9, 0.15),
-              bottom=(240, 224, 210), glow=(250, 244, 236), layout="image-top", width=1600,
+              mask=dict(inset=0.03, blur=0.08, roughness=0.7, fade_top=0.2, fade_bottom=0.14, fade_x=0.12, seed=5)),
+    "B": dict(name="B-pho-co", art="ban-cong.png", crop=(0, 0.27, 1, 0.99), tone=(0.1, 0.03, 0.9, 0.22),
+              bottom=(240, 224, 210), glow=(250, 244, 236), layout="image-top", width=2060, top=400, title_y=2220,
               head=("Nº 03", "BA SÁU PHỐ PHƯỜNG", "HÀ NỘI"),
               side=("PHỐ CỔ  ·  MÁI NGÓI  ·  HOA GIẤY", "THĂNG LONG  ·  KẺ CHỢ  ·  HÀ NỘI"),
-              mask=dict(inset=0.05, blur=0.09, roughness=0.7, fade_top=0.14, fade_bottom=0.2, fade_x=0.1, seed=8)),
+              mask=dict(inset=0.03, blur=0.08, roughness=0.7, fade_top=0.14, fade_bottom=0.18, fade_x=0.1, seed=8)),
     "C": dict(name="C-xe-hoa", art="xe-hoa.png", crop=(0.075, 0.351, 0.927, 0.974), tone=(0.18, 0.05, 0.8, 0.25),
               bottom=(242, 230, 204), glow=(250, 244, 234), layout="title-top", width=1480,
               head=("Nº 04", "PHỐ CỔ  ·  HÀ NỘI", ""),
@@ -87,13 +87,14 @@ def render(spec):
 
     if spec["layout"] == "image-top":
         wash(img, [], spec["glow"], alpha=0.85, blur=70, ellipses=[(cx - 660, 560, cx + 660, 1880)])
-        place_art(img, spec, 250, 2400)
+        ty = spec.get("title_y", 2500)
+        place_art(img, spec, spec.get("top", 250), ty - 100)
         T = Typesetter(img)
-        title_block(img, T, 2500)
+        title_block(img, T, ty)
     else:
         title_block(img, T, 560, size=0.93)
         wash(img, [], spec["glow"], alpha=0.7, blur=90, ellipses=[(cx - 820, 1150, cx + 820, 2950)])
-        place_art(img, spec, 1070, 3080)
+        place_art(img, spec, spec.get("top", 1070), 3080)
         T = Typesetter(img)
 
     # header
