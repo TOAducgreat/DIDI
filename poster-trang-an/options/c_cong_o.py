@@ -3,8 +3,8 @@ import math
 
 from PIL import Image, ImageDraw
 
-from common import (CA_DAO, CLASS, NAMES, SCHOOL, CH, CW, H, M, W,
-                    Typesetter, font, p, paper, save, seed)
+from common import (CA_DAO, CLASS, NAMES, SCHOOL, CH, CW, H, M, W, OUT_DIR,
+                    Typesetter, font, p, paper, save, seal, seed)
 
 seed(1749)
 PAPER = (241, 236, 225)
@@ -55,6 +55,28 @@ for k in range(25):
     r0, r1 = AW + 26, AW + 70
     d.line([(p(cx + math.cos(a) * r0), p(A_TOP + AW + math.sin(a) * r0)),
             (p(cx + math.cos(a) * r1), p(A_TOP + AW + math.sin(a) * r1))], fill=CREAM, width=2)
+# gate-tower (vọng lâu) crowning the gate, in cream hairlines
+tb = A_TOP - 160                       # base line of the tower = top of the plaque
+d.line([(p(cx - 330), p(tb)), (p(cx + 330), p(tb))], fill=CREAM, width=3)
+d.rectangle([p(cx - 200), p(tb - 74), p(cx + 200), p(tb)], outline=CREAM, width=3)
+for k in range(-2, 3):                 # small arched openings
+    x = cx + k * 76
+    d.rectangle([p(x - 16), p(tb - 44), p(x + 16), p(tb - 12)], outline=CREAM, width=2)
+    d.arc([p(x - 16), p(tb - 60), p(x + 16), p(tb - 28)], 180, 360, fill=CREAM, width=2)
+# tiled roof: straight slopes, ridge, upturned eave tips (đầu đao)
+ey, ry = tb - 80, tb - 128           # eave line, ridge line
+roof = [(cx - 286, ey), (cx - 196, ry), (cx + 196, ry), (cx + 286, ey)]
+d.polygon([(p(x), p(y)) for x, y in roof], fill=(140, 62, 50), outline=CREAM, width=3)
+for k in range(1, 30):               # tile ribs
+    t = k / 30
+    d.line([(p(cx - 286 + 572 * t), p(ey - 2)), (p(cx - 196 + 392 * t), p(ry + 2))], fill=BRICK_L, width=2)
+for sx in (-1, 1):
+    tip = [(cx + sx * 286, ey), (cx + sx * 312, ey - 6), (cx + sx * 330, ey - 26), (cx + sx * 324, ey - 34)]
+    d.line([(p(x), p(y)) for x, y in tip], fill=CREAM, width=3, joint="curve")
+    d.line([(p(cx + sx * 196), p(ry)), (p(cx + sx * 214), p(ry - 18))], fill=CREAM, width=3)
+d.line([(p(cx - 196), p(ry)), (p(cx + 196), p(ry))], fill=CREAM, width=4)
+d.ellipse([p(cx - 9), p(ry - 22), p(cx + 9), p(ry - 4)], outline=CREAM, width=2)
+
 # keystone plaque
 pw, ph, py = 300, 74, A_TOP - 150
 d.rectangle([p(cx - pw / 2), p(py), p(cx + pw / 2), p(py + ph)], fill=CREAM)
@@ -74,11 +96,41 @@ big = font("PlayfairDisplay-Italic[wght].ttf", 210, 400)
 T.put("người", big, cx, gy + 290, INK, anchor="c")
 T.put("Tràng An", big, cx, gy + 520, BRICK, anchor="c")
 
+# ---- through the gate: the old quarter's rooftops, faint ink ----
+SKY = (122, 112, 104)
+x = cx - AW
+random_w = [150, 120, 170, 110, 160, 130, 140, 140]
+random_h = [210, 300, 170, 260, 230, 190, 280, 200]
+k = 0
+while x < cx + AW - 4:
+    w = min(random_w[k % 8], cx + AW - x)
+    h = random_h[k % 8]
+    top = BLOCK - h
+    d.rectangle([p(x), p(top), p(x + w), p(BLOCK)], fill=(236, 228, 212), outline=SKY, width=2)
+    if k % 3 != 1:                      # pitched tile roof
+        d.polygon([(p(x - 6), p(top)), (p(x + 14), p(top - 46)), (p(x + w - 14), p(top - 46)), (p(x + w + 6), p(top))],
+                  fill=(226, 206, 190), outline=SKY)
+        for j in range(1, 4):
+            yy = top - 46 * j / 4
+            d.line([(p(x - 6 + 20 * j / 4), p(yy)), (p(x + w + 6 - 20 * j / 4), p(yy))], fill=SKY, width=1)
+    else:                               # flat parapet with a small pediment
+        d.line([(p(x - 6), p(top)), (p(x + w + 6), p(top))], fill=SKY, width=3)
+        d.line([(p(x + w / 2 - 30), p(top)), (p(x + w / 2), p(top - 26)), (p(x + w / 2 + 30), p(top))], fill=SKY, width=2)
+    # shuttered windows
+    for fy in range(top + 34, BLOCK - 130, 86):
+        for wx in (x + w * 0.28, x + w * 0.72):
+            d.rectangle([p(wx - 13), p(fy), p(wx + 13), p(fy + 44)], outline=SKY, width=2)
+            d.line([(p(wx), p(fy)), (p(wx), p(fy + 44))], fill=SKY, width=1)
+    d.line([(p(x + 12), p(BLOCK - 62)), (p(x + w - 12), p(BLOCK - 62))], fill=SKY, width=2)
+    x += w
+    k += 1
+d.line([(p(cx - AW), p(BLOCK - 1)), (p(cx + AW), p(BLOCK - 1))], fill=INK2, width=3)
+
 # ---- below the block ----
 cf = font("PlayfairDisplay-Italic[wght].ttf", 46, 400)
-T.put(CA_DAO[0], cf, cx, BLOCK + 190, INK2, anchor="c")
-T.put(CA_DAO[1], cf, cx, BLOCK + 256, INK2, anchor="c")
-T.put("— CA DAO —", font("BeVietnamPro-Light.ttf", 20), cx, BLOCK + 320, INK2, track=8, anchor="c")
+T.put(CA_DAO[0], cf, cx, BLOCK + 250, INK2, anchor="c")
+T.put(CA_DAO[1], cf, cx, BLOCK + 318, INK2, anchor="c")
+T.put("— CA DAO —", font("BeVietnamPro-Light.ttf", 20), cx, BLOCK + 388, INK2, track=8, anchor="c")
 
 by = 3150
 d.line([(p(M), p(by)), (p(W - M), p(by))], fill=INK2, width=2)
@@ -89,5 +141,6 @@ T.put(NAMES[1], nf, M, by + 160, INK)
 T.put(CLASS, lf, W - M, by + 100, INK, anchor="r")
 T.put(SCHOOL, lf, W - M, by + 160, INK, anchor="r")
 d.line([(p(cx), p(by + 60)), (p(cx), p(by + 170))], fill=INK2, width=2)
+seal(img, cx + 600, BLOCK + 282, 100, (164, 58, 44), ["Tràng", "An"], font("PlayfairDisplay[wght].ttf", 23, 500))
 
-save(img, "C-cua-o")
+save(img, "C-cua-o", OUT_DIR.parent / "final")

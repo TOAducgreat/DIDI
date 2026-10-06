@@ -125,9 +125,9 @@ def seal(img, cx, cy, size, color, lines, fnt, rot=-3):
     img.paste(Image.new("RGB", m.size, color), (int(p(cx) - m.width / 2), int(p(cy) - m.height / 2)), m)
 
 
-def save(img, name):
+def save(img, name, out_dir=None):
     out = img.resize((W, H), Image.LANCZOS)
-    path = OUT_DIR / f"{name}.png"
+    path = (out_dir or OUT_DIR) / f"{name}.png"
     out.save(path, dpi=(300, 300))
     out.save(path.with_suffix(".pdf"), resolution=300)
     print("saved", path)

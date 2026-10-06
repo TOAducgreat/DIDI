@@ -1,14 +1,13 @@
 """Poster: Nét thanh lịch người Tràng An — phong cách "Mặc Nguyệt"."""
 import math
 import random
-import sys
 from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-FONT_DIR = Path(sys.argv[1])
-OUT = Path(__file__).with_name("poster-net-thanh-lich-trang-an.png")
+FONT_DIR = Path(__file__).resolve().parent / "fonts"
+OUT = Path(__file__).resolve().parent / "final" / "0-mac-nguyet.png"
 
 S = 2                      # supersampling
 W, H = 2480, 3508          # A-series ratio, final pixels
@@ -22,10 +21,14 @@ INK2 = (88, 84, 78)
 INK3 = (150, 144, 134)
 MIST = (196, 189, 175)
 SON = (168, 46, 34)        # lacquer vermilion
+LOTUS = (224, 168, 162)    # pale lotus pink
 
 
-def font(name, size):
-    return ImageFont.truetype(str(FONT_DIR / name), int(size * S))
+def font(name, size, wght=None):
+    f = ImageFont.truetype(str(FONT_DIR / name), int(size * S))
+    if wght is not None:
+        f.set_variation_by_axes([wght])
+    return f
 
 
 def p(v):
@@ -83,9 +86,10 @@ def put(t, f, x, y, fill, track=0, anchor="l"):
 
 M = 170                                   # margin
 F_SANS = "Jura-Light.ttf"
-F_SC = "ArsenalSC-Regular.ttf"
-F_SERIF = "CrimsonPro-Regular.ttf"
-F_ITAL = "CrimsonPro-Italic.ttf"
+F_SERIF = "PlayfairDisplay[wght].ttf"
+F_ITAL = "PlayfairDisplay-Italic[wght].ttf"
+F_BODY = "BeVietnamPro-Light.ttf"
+F_BODY_M = "BeVietnamPro-Medium.ttf"
 
 # ---------- header ----------
 put("Nº 01", font(F_SANS, 30), p(M), p(240), INK2, track=6)
@@ -166,6 +170,31 @@ def lens(base_xy, length, width, angle, col, w=1, steps=60):
 lb = (cx, cy + 172)
 petals = [(-90, 300, 64), (-64, 262, 58), (-116, 262, 58),
           (-40, 210, 52), (-140, 210, 52), (-18, 150, 42), (-162, 150, 42)]
+
+
+def lens_pts(base_xy, length, width, angle, steps=60):
+    bx, by = base_xy
+    ca, sa = math.cos(angle), math.sin(angle)
+    left, right = [], []
+    for j in range(steps + 1):
+        t = j / steps
+        half = width * math.sin(math.pi * t) ** 0.85 * (1 - 0.25 * t)
+        for side, arr in ((1, left), (-1, right)):
+            lx, ly = length * t, side * half
+            arr.append((p(bx + lx * ca - ly * sa), p(by + lx * sa + ly * ca)))
+    return left + right[::-1]
+
+
+# soft lotus-pink wash, deepest toward the petal tips
+pink = Image.new("L", (CW, CH), 0)
+pd = ImageDraw.Draw(pink)
+for deg, L, Wd in petals:
+    pd.polygon(lens_pts(lb, L, Wd, math.radians(deg)), fill=70)
+    pd.polygon(lens_pts((lb[0] + math.cos(math.radians(deg)) * L * 0.45, lb[1] + math.sin(math.radians(deg)) * L * 0.45),
+                        L * 0.55, Wd * 0.7, math.radians(deg)), fill=150)
+pink = pink.filter(ImageFilter.GaussianBlur(p(5)))
+img.paste(Image.new("RGB", (CW, CH), LOTUS), (0, 0), pink)
+draw = ImageDraw.Draw(img)
 for deg, L, Wd in petals:
     for k, (sc, col) in enumerate(((1.0, INK), (0.82, INK2), (0.64, INK3))):
         lens(lb, L * sc, Wd * sc, math.radians(deg), col)
@@ -200,7 +229,7 @@ sx, sy, ss = cx + 700, cy + 730, 124
 seal = Image.new("L", (p(ss), p(ss)), 0)
 sd = ImageDraw.Draw(seal)
 sd.rounded_rectangle([0, 0, p(ss) - 1, p(ss) - 1], radius=p(8), fill=255)
-sf = font(F_SERIF, 44)
+sf = font(F_SERIF, 31, 500)
 sd.text((p(ss / 2), p(ss * 0.43)), "Tràng", font=sf, fill=0, anchor="ms")
 sd.text((p(ss / 2), p(ss * 0.80)), "An", font=sf, fill=0, anchor="ms")
 inner = p(9)
@@ -215,8 +244,8 @@ draw = ImageDraw.Draw(img)
 
 # ---------- title ----------
 ty = 2470
-put("Nét thanh lịch", font(F_SERIF, 238), p(cx), p(ty), INK, track=2, anchor="c")
-put("người Tràng An", font(F_ITAL, 158), p(cx), p(ty + 200), INK, track=1, anchor="c")
+put("Nét thanh lịch", font(F_SERIF, 214, 400), p(cx), p(ty), INK, track=1, anchor="c")
+put("người Tràng An", font(F_ITAL, 150, 400), p(cx), p(ty + 196), SON, anchor="c")
 
 # small ornament: rule — dot — rule
 oy = ty + 300
@@ -224,7 +253,7 @@ draw.line([(p(cx - 230), p(oy)), (p(cx - 26), p(oy))], fill=INK3, width=S)
 draw.line([(p(cx + 26), p(oy)), (p(cx + 230), p(oy))], fill=INK3, width=S)
 draw.ellipse([p(cx - 7), p(oy - 7), p(cx + 7), p(oy + 7)], fill=SON)
 
-cf = font(F_ITAL, 46)
+cf = font(F_ITAL, 42, 400)
 put("Chẳng thơm cũng thể hoa nhài,", cf, p(cx), p(oy + 100), INK2, anchor="c")
 put("dẫu không thanh lịch cũng người Tràng An.", cf, p(cx), p(oy + 162), INK2, anchor="c")
 put("— CA DAO —", font(F_SANS, 22), p(cx), p(oy + 224), INK3, track=8, anchor="c")
@@ -238,13 +267,13 @@ lab = font(F_SANS, 20)
 put("THỰC HIỆN", lab, p(M), p(by + 70), INK2, track=7)
 put("ĐƠN VỊ", lab, p(W - M), p(by + 70), INK2, track=7, anchor="r")
 
-nf = font(F_SC, 40)
-put("Đặng Vũ Hà Châu", nf, p(M), p(by + 132), INK, track=3)
-put("Nguyễn Thụy Anh", nf, p(M), p(by + 188), INK, track=3)
+nf = font(F_BODY_M, 36)
+put("Đặng Vũ Hà Châu", nf, p(M), p(by + 132), INK)
+put("Nguyễn Thụy Anh", nf, p(M), p(by + 188), INK)
 
-sf2 = font(F_SC, 34)
-put("Lớp 10 Chuyên Sử 1", sf2, p(W - M), p(by + 132), INK, track=3, anchor="r")
-put("Trường THPT chuyên Hà Nội – Amsterdam", sf2, p(W - M), p(by + 188), INK, track=2, anchor="r")
+sf2 = font(F_BODY, 31)
+put("Lớp 10 Chuyên Sử 1", sf2, p(W - M), p(by + 132), INK, anchor="r")
+put("Trường THPT chuyên Hà Nội – Amsterdam", sf2, p(W - M), p(by + 188), INK, anchor="r")
 
 # ---------- finish ----------
 out = img.resize((W, H), Image.LANCZOS)
