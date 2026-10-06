@@ -10,3 +10,6 @@ get xe-hoa.png         https://cdn.plenxai.com/plenxai/generated/20261006/a4537a
 get xe-hoa-cut.png     https://cdn.plenxai.com/images/bdde744a4812423faf98fca83d291a1a.png
 get tra-sen.png        https://cdn.plenxai.com/plenxai/generated/20261006/9f28cb2e-b4f9-4d09-8e8d-4fcaa6d25ca3_2k_23f2a15c.png
 get tra-sen-cut.png    https://cdn.plenxai.com/images/20f481b28eb24a768b0812a1b1c0503b.png
+# Tranh 4k cho bản A (Hồ Gươm) và bản B (ban công phố cổ)
+get ho-guom.png        https://cdn.plenxai.com/plenxai/images/20261006/nexo_d1eaef31-62d_914f5e89.png
+get ban-cong.png       https://cdn.plenxai.com/plenxai/images/20261006/nexo_882dceaa-705_5b63fae8.png
