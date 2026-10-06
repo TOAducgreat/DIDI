@@ -1,243 +1,79 @@
-"""Poster: Nét thanh lịch người Tràng An — phong cách "Mặc Nguyệt"."""
-import math
-import random
+"""Bản 0 — Mặc Nguyệt: tranh lụa đàn tranh bên sen, không khung, nền ngà → hồng sen."""
 import sys
 from pathlib import Path
 
-import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "options"))
-from paint import lay, load, silk_tone  # noqa: E402
+from brush import wash  # noqa: E402
+from common import (CA_DAO, CLASS, NAMES, SCHOOL, SUB, TITLE, M, W, OUT_DIR,  # noqa: E402
+                    Typesetter, font, p, paper, save, seal, seed)
+from paint import lay, load, silk_tone, soft_mask  # noqa: E402
 
-FONT_DIR = Path(__file__).resolve().parent / "fonts"
-OUT = Path(__file__).resolve().parent / "final" / "0-mac-nguyet.png"
-
-S = 2                      # supersampling
-W, H = 2480, 3508          # A-series ratio, final pixels
-CW, CH = W * S, H * S
-random.seed(1010)
-np.random.seed(1010)
-
-PAPER = (238, 232, 218)
+seed(1010)
+IVORY, LOTUS_BG = (244, 238, 228), (241, 222, 218)
 INK = (28, 26, 24)
-INK2 = (88, 84, 78)
-INK3 = (150, 144, 134)
-MIST = (196, 189, 175)
-SON = (168, 46, 34)        # lacquer vermilion
-LOTUS = (224, 168, 162)    # pale lotus pink
+INK2 = (96, 88, 82)
+INK3 = (160, 148, 140)
+SON = (168, 46, 34)
 
+img = paper(LOTUS_BG, top=IVORY, grain=3.0, vignette=14, fibres=700, fibre_col=(214, 202, 190))
+cx = W / 2
 
-def font(name, size, wght=None):
-    f = ImageFont.truetype(str(FONT_DIR / name), int(size * S))
-    if wght is not None:
-        f.set_variation_by_axes([wght])
-    return f
+# a full moon with no outline — only a lighter breath of silk behind the player
+wash(img, [], (250, 245, 238), alpha=0.85, blur=70, ellipses=[(cx - 660, 560, cx + 660, 1880)])
 
-
-def p(v):
-    return v * S
-
-
-# ---------- paper ----------
-base = np.zeros((CH, CW, 3), np.float32) + np.array(PAPER, np.float32)
-grain = np.random.normal(0, 3.2, (CH // 4, CW // 4)).astype(np.float32)
-grain = np.array(Image.fromarray(grain).resize((CW, CH), Image.BICUBIC))
-base += grain[..., None]
-yy, xx = np.mgrid[0:CH, 0:CW].astype(np.float32)
-d = np.sqrt(((xx - CW / 2) / (CW / 2)) ** 2 + ((yy - CH / 2) / (CH / 2)) ** 2)
-base -= (np.clip(d - 0.55, 0, None) ** 2 * 26)[..., None]
-img = Image.fromarray(np.clip(base, 0, 255).astype(np.uint8), "RGB")
-
-# fibres of giấy dó
-fib = Image.new("L", (CW, CH), 0)
-fd = ImageDraw.Draw(fib)
-for _ in range(900):
-    x, y = random.uniform(0, CW), random.uniform(0, CH)
-    a = random.uniform(0, math.pi)
-    L = random.uniform(p(20), p(90))
-    pts = []
-    for i in range(8):
-        t = i / 7
-        pts.append((x + math.cos(a) * L * t + math.sin(t * 5) * p(3),
-                    y + math.sin(a) * L * t + math.cos(t * 4) * p(3)))
-    fd.line(pts, fill=random.randint(10, 26), width=1)
-fib = fib.filter(ImageFilter.GaussianBlur(1.2))
-img = Image.composite(Image.new("RGB", (CW, CH), (205, 196, 178)), img, fib)
-
-draw = ImageDraw.Draw(img)
-
-
-def text_w(t, f, track=0):
-    if not track:
-        return draw.textlength(t, font=f)
-    return sum(draw.textlength(c, font=f) for c in t) + track * S * (len(t) - 1)
-
-
-def put(t, f, x, y, fill, track=0, anchor="l"):
-    w = text_w(t, f, track)
-    if anchor == "c":
-        x -= w / 2
-    elif anchor == "r":
-        x -= w
-    if not track:
-        draw.text((x, y), t, font=f, fill=fill, anchor="ls")
-        return
-    for c in t:
-        draw.text((x, y), c, font=f, fill=fill, anchor="ls")
-        x += draw.textlength(c, font=f) + track * S
-
-
-M = 170                                   # margin
-F_SANS = "Jura-Light.ttf"
-F_SERIF = "PlayfairDisplay[wght].ttf"
-F_ITAL = "PlayfairDisplay-Italic[wght].ttf"
-F_BODY = "BeVietnamPro-Light.ttf"
-F_BODY_M = "BeVietnamPro-Medium.ttf"
-
-# ---------- header ----------
-put("Nº 01", font(F_SANS, 30), p(M), p(240), INK2, track=6)
-put("TRÀNG AN  ·  1010", font(F_SANS, 30), p(W / 2), p(240), INK2, track=6, anchor="c")
-put("21°01'N  105°51'E", font(F_SANS, 30), p(W - M), p(240), INK2, track=4, anchor="r")
-draw.line([(p(M), p(282)), (p(W - M), p(282))], fill=INK3, width=p(1))
-
-# ---------- the window / moon ----------
-cx, cy = W / 2, 1330
-R_OUT, R_IN = 790, 540
-
-# faint moon wash behind
-wash = Image.new("L", (CW, CH), 0)
-ImageDraw.Draw(wash).ellipse([p(cx - R_IN + 6), p(cy - R_IN + 6),
-                              p(cx + R_IN - 6), p(cy + R_IN - 6)], fill=70)
-wash = wash.filter(ImageFilter.GaussianBlur(p(26)))
-img = Image.composite(Image.new("RGB", (CW, CH), (224, 216, 199)), img, wash)
-draw = ImageDraw.Draw(img)
-
-# radiating hairlines — the Khuê Văn Các sun window
-N = 360
-for i in range(N):
-    a = 2 * math.pi * i / N - math.pi / 2
-    if i % 30 == 0:
-        r0, r1, col, w = R_IN - 14, R_OUT + 34, INK, 2
-    elif i % 10 == 0:
-        r0, r1, col, w = R_IN, R_OUT + 14, INK, 2
-    elif i % 5 == 0:
-        r0, r1, col, w = R_IN + 22, R_OUT, INK2, 1
-    else:
-        r0, r1, col, w = R_IN + 48, R_OUT - 26, INK3, 1
-    ca, sa = math.cos(a), math.sin(a)
-    draw.line([(p(cx + ca * r0), p(cy + sa * r0)),
-               (p(cx + ca * r1), p(cy + sa * r1))], fill=col, width=w * S // 1)
-
-
-def ring(r, col, w=1):
-    draw.ellipse([p(cx - r), p(cy - r), p(cx + r), p(cy + r)], outline=col, width=w * S)
-
-
-ring(R_OUT + 62, INK3)
-ring(R_OUT + 74, MIST)
-ring(R_IN - 30, INK2)
-ring(R_IN - 40, MIST)
-
-# dotted inner ring
-for i in range(144):
-    a = 2 * math.pi * i / 144
-    r = R_IN - 64
-    x, y = cx + math.cos(a) * r, cy + math.sin(a) * r
-    draw.ellipse([p(x - 2.2), p(y - 2.2), p(x + 2.2), p(y + 2.2)], fill=INK2)
-
-# hour-like numerals around the outer ring (thin, archival)
-numf = font(F_SANS, 20)
-for k in range(12):
-    a = 2 * math.pi * k / 12 - math.pi / 2
-    r = R_OUT + 112
-    label = f"{k * 30:03d}"
-    x, y = cx + math.cos(a) * r, cy + math.sin(a) * r
-    draw.text((p(x), p(y)), label, font=numf, fill=INK3, anchor="mm")
-
-
-# ---------- the painting inside the window: đàn tranh bên sen ----------
+# ---------- the painting, frameless ----------
 src = load("dan-tranh.png")
 bg = silk_tone(src, (100, 100, 600, 500))
-pr = R_IN - 72                                  # painted disc radius
-art = src.crop((0, 780, 1116, 1896)).resize((p(2 * pr), p(2 * pr)), Image.LANCZOS)
-disc = Image.new("L", art.size, 0)
-ImageDraw.Draw(disc).ellipse([p(14), p(14), art.width - p(14), art.height - p(14)], fill=255)
-disc = disc.filter(ImageFilter.GaussianBlur(p(12)))
-lay(img, art, int(p(cx - pr)), int(p(cy - pr)), disc, bg)
-draw = ImageDraw.Draw(img)
+crop = src.crop((0, 560, 1116, 2000))
+aw = 1640
+ah = int(crop.height * aw / crop.width)
+art = crop.resize((p(aw), p(ah)), Image.LANCZOS)
+ax, ay = cx - aw / 2, 250
+mask = soft_mask(art.size, inset=0.05, blur=0.09, roughness=0.7, fade_top=0.12, fade_bottom=0.2, fade_x=0.1, seed=3)
+lay(img, art, int(p(ax)), int(p(ay)), mask, bg)
 
-# ---------- vertical marginal text ----------
-def vertical(t, f, x, y_center, fill, track):
-    w = int(text_w(t, f, track)) + p(20)
-    h = p(60)
-    layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    ld = ImageDraw.Draw(layer)
-    xx = p(10)
-    for c in t:
-        ld.text((xx, h * 0.72), c, font=f, fill=fill + (255,), anchor="ls")
-        xx += ld.textlength(c, font=f) + track * S
-    layer = layer.rotate(90, expand=True, resample=Image.BICUBIC)
-    img.paste(layer, (int(p(x) - layer.width / 2), int(p(y_center) - layer.height / 2)), layer)
-
-
-vertical("THĂNG LONG  ·  ĐÔNG ĐÔ  ·  HÀ NỘI", font(F_SANS, 26), M + 6, cy, INK2, 9)
-vertical("HÌNH THỨC  —  KHUÊ VĂN  ·  SEN  ·  NGUYỆT", font(F_SANS, 26), W - M - 6, cy, INK2, 9)
-draw = ImageDraw.Draw(img)
-
-# ---------- seal (dấu son) ----------
-sx, sy, ss = cx + 700, cy + 730, 124
-seal = Image.new("L", (p(ss), p(ss)), 0)
-sd = ImageDraw.Draw(seal)
-sd.rounded_rectangle([0, 0, p(ss) - 1, p(ss) - 1], radius=p(8), fill=255)
-sf = font(F_SERIF, 31, 500)
-sd.text((p(ss / 2), p(ss * 0.43)), "Tràng", font=sf, fill=0, anchor="ms")
-sd.text((p(ss / 2), p(ss * 0.80)), "An", font=sf, fill=0, anchor="ms")
-inner = p(9)
-sd.rounded_rectangle([inner, inner, p(ss) - inner, p(ss) - inner], radius=p(5), outline=0, width=p(2))
-# worn ink texture
-noise = (np.random.rand(p(ss), p(ss)) > 0.06).astype(np.uint8) * 255
-seal = Image.fromarray((np.array(seal) * (noise / 255)).astype(np.uint8))
-seal = seal.filter(ImageFilter.GaussianBlur(1.1)).rotate(-3, resample=Image.BICUBIC, expand=True)
-seal = seal.point(lambda v: int(v * 0.92))
-img.paste(Image.new("RGB", seal.size, SON), (int(p(sx - ss / 2)), int(p(sy - ss / 2))), seal)
-draw = ImageDraw.Draw(img)
+# ---------- header + margins ----------
+T = Typesetter(img)
+d = ImageDraw.Draw(img)
+hf = font("Jura-Light.ttf", 30)
+T.put("Nº 01", hf, M, 240, INK2, track=6)
+T.put("TRÀNG AN  ·  1010", hf, cx, 240, INK2, track=6, anchor="c")
+T.put("21°01'N  105°51'E", hf, W - M, 240, INK2, track=4, anchor="r")
+d.line([(p(M), p(282)), (p(W - M), p(282))], fill=INK3, width=2)
+vf = font("Jura-Light.ttf", 26)
+T.vertical("THĂNG LONG  ·  ĐÔNG ĐÔ  ·  HÀ NỘI", vf, M + 6, 1300, INK2, track=9)
+T.vertical("TIẾNG ĐÀN  ·  HOA SEN  ·  VẦNG NGUYỆT", vf, W - M - 6, 1300, INK2, track=9)
+d = ImageDraw.Draw(img)
 
 # ---------- title ----------
-ty = 2470
-put("Nét thanh lịch", font(F_SERIF, 214, 400), p(cx), p(ty), INK, track=1, anchor="c")
-put("người Tràng An", font(F_ITAL, 150, 400), p(cx), p(ty + 196), SON, anchor="c")
+ty = 2500
+T.put(TITLE, font("PlayfairDisplay[wght].ttf", 214, 400), cx, ty, INK, track=1, anchor="c")
+sw = T.put(SUB, font("PlayfairDisplay-Italic[wght].ttf", 150, 400), cx, ty + 196, SON, anchor="c")
+seal(img, cx + sw / 2 + 90, ty + 150, 108, SON, ["Tràng", "An"], font("PlayfairDisplay[wght].ttf", 27, 500))
+d = ImageDraw.Draw(img)
 
-# small ornament: rule — dot — rule
-oy = ty + 300
-draw.line([(p(cx - 230), p(oy)), (p(cx - 26), p(oy))], fill=INK3, width=S)
-draw.line([(p(cx + 26), p(oy)), (p(cx + 230), p(oy))], fill=INK3, width=S)
-draw.ellipse([p(cx - 7), p(oy - 7), p(cx + 7), p(oy + 7)], fill=SON)
-
-cf = font(F_ITAL, 42, 400)
-put("Chẳng thơm cũng thể hoa nhài,", cf, p(cx), p(oy + 100), INK2, anchor="c")
-put("dẫu không thanh lịch cũng người Tràng An.", cf, p(cx), p(oy + 162), INK2, anchor="c")
-put("— CA DAO —", font(F_SANS, 22), p(cx), p(oy + 224), INK3, track=8, anchor="c")
+oy = ty + 290
+d.line([(p(cx - 230), p(oy)), (p(cx - 26), p(oy))], fill=INK3, width=2)
+d.line([(p(cx + 26), p(oy)), (p(cx + 230), p(oy))], fill=INK3, width=2)
+d.ellipse([p(cx - 7), p(oy - 7), p(cx + 7), p(oy + 7)], fill=SON)
+cf = font("PlayfairDisplay-Italic[wght].ttf", 42, 400)
+T.put(CA_DAO[0], cf, cx, oy + 96, INK2, anchor="c")
+T.put(CA_DAO[1], cf, cx, oy + 154, INK2, anchor="c")
+T.put("— CA DAO —", font("Jura-Light.ttf", 22), cx, oy + 212, INK3, track=8, anchor="c")
 
 # ---------- credits ----------
 by = 3200
-draw.line([(p(M), p(by)), (p(W - M), p(by))], fill=INK3, width=S)
-draw.line([(p(M), p(by + 8)), (p(W - M), p(by + 8))], fill=MIST, width=S)
+d.line([(p(M), p(by)), (p(W - M), p(by))], fill=INK3, width=2)
+lab = font("Jura-Light.ttf", 20)
+T.put("THỰC HIỆN", lab, M, by + 70, INK2, track=7)
+T.put("ĐƠN VỊ", lab, W - M, by + 70, INK2, track=7, anchor="r")
+nf = font("BeVietnamPro-Medium.ttf", 36)
+lf = font("BeVietnamPro-Light.ttf", 31)
+T.put(NAMES[0], nf, M, by + 132, INK)
+T.put(NAMES[1], nf, M, by + 188, INK)
+T.put(CLASS, lf, W - M, by + 132, INK, anchor="r")
+T.put(SCHOOL, lf, W - M, by + 188, INK, anchor="r")
 
-lab = font(F_SANS, 20)
-put("THỰC HIỆN", lab, p(M), p(by + 70), INK2, track=7)
-put("ĐƠN VỊ", lab, p(W - M), p(by + 70), INK2, track=7, anchor="r")
-
-nf = font(F_BODY_M, 36)
-put("Đặng Vũ Hà Châu", nf, p(M), p(by + 132), INK)
-put("Nguyễn Thụy Anh", nf, p(M), p(by + 188), INK)
-
-sf2 = font(F_BODY, 31)
-put("Lớp 10 Chuyên Sử 1", sf2, p(W - M), p(by + 132), INK, anchor="r")
-put("Trường THPT chuyên Hà Nội – Amsterdam", sf2, p(W - M), p(by + 188), INK, anchor="r")
-
-# ---------- finish ----------
-out = img.resize((W, H), Image.LANCZOS)
-out.save(OUT, dpi=(300, 300))
-out.convert("RGB").save(OUT.with_suffix(".pdf"), resolution=300)
-print("saved", OUT)
+save(img, "0-mac-nguyet", OUT_DIR.parent / "final")
