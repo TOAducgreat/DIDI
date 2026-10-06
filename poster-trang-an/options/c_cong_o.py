@@ -1,10 +1,11 @@
 """Phương án C — Cửa Ô & mái ngói: khối son trầm phủ hoa văn ngói vảy cá, cổng vòm mở ra trang giấy."""
 import math
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 from common import (CA_DAO, CLASS, NAMES, SCHOOL, CH, CW, H, M, W, OUT_DIR,
                     Typesetter, font, p, paper, save, seal, seed)
+from paint import lay, load, silk_tone
 
 seed(1749)
 PAPER = (241, 236, 225)
@@ -17,7 +18,7 @@ GOLD = (196, 158, 98)
 
 img = paper(PAPER, grain=3.0, vignette=16, fibres=700, fibre_col=(214, 204, 186))
 cx = W / 2
-BLOCK = 2480
+BLOCK = 2300
 AW, A_TOP = 560, 560       # half-width of the arch, top of its curve
 
 # ---- brick block with fish-scale tiles (ngói vảy cá) ----
@@ -43,6 +44,26 @@ md.rectangle([0, 0, CW, p(BLOCK)], fill=255)
 md.rectangle([p(cx - AW), p(A_TOP + AW), p(cx + AW), p(BLOCK)], fill=0)
 md.ellipse([p(cx - AW), p(A_TOP), p(cx + AW), p(A_TOP + 2 * AW)], fill=0)
 img.paste(blk, (0, 0), mask)
+
+# ---- through the gate: the silk painting (thiếu nữ bên xe hoa) ----
+src = load("xe-hoa.png")
+bg = silk_tone(src, (200, 100, 900, 500))
+crop = src.crop((84, 702, 1034, 1948))
+aw = 2 * AW
+ah = int(crop.height * aw / crop.width)
+art = crop.resize((p(aw), p(ah)), Image.LANCZOS)
+ay = BLOCK - ah
+gate = Image.new("L", art.size, 0)          # arch opening, in painting-local coords
+gd = ImageDraw.Draw(gate)
+top_local = A_TOP - ay
+gd.rectangle([0, p(top_local + AW), art.width, art.height], fill=255)
+gd.ellipse([0, p(top_local), art.width, p(top_local + 2 * AW)], fill=255)
+fade = Image.linear_gradient("L").resize(art.size)        # 0 top -> 255 bottom
+ramp = fade.point(lambda v: 255 if v > 255 * 260 / ah else int(v / (255 * 260 / ah) * 255))
+bot = fade.point(lambda v: 255 if v < 255 * (1 - 70 / ah) else int((255 - v) / (255 * 70 / ah) * 255))
+from PIL import ImageChops
+m = ImageChops.multiply(ImageChops.multiply(gate, ramp), bot).filter(ImageFilter.GaussianBlur(p(2)))
+lay(img, art, int(p(cx - AW)), int(p(ay)), m, bg)
 d = ImageDraw.Draw(img)
 
 # voussoir ring around the arch (cream hairlines + brick joints)
@@ -88,49 +109,13 @@ small = font("BeVietnamPro-Light.ttf", 24)
 T.put("CỬA Ô  ·  QUAN CHƯỞNG", small, M, 250, CREAM, track=8)
 T.put("THĂNG LONG  —  HÀ NỘI", small, W - M, 250, CREAM, track=8, anchor="r")
 
-# ---- inside the gate ----
-gy = A_TOP + AW + 230
-T.put("NÉT THANH LỊCH", font("BeVietnamPro-Light.ttf", 44), cx, gy + 10, INK2, track=22, anchor="c")
-d.line([(p(cx - 60), p(gy + 60)), (p(cx + 60), p(gy + 60))], fill=GOLD, width=3)
-big = font("PlayfairDisplay-Italic[wght].ttf", 210, 400)
-T.put("người", big, cx, gy + 290, INK, anchor="c")
-T.put("Tràng An", big, cx, gy + 520, BRICK, anchor="c")
-
-# ---- through the gate: the old quarter's rooftops, faint ink ----
-SKY = (122, 112, 104)
-x = cx - AW
-random_w = [150, 120, 170, 110, 160, 130, 140, 140]
-random_h = [210, 300, 170, 260, 230, 190, 280, 200]
-k = 0
-while x < cx + AW - 4:
-    w = min(random_w[k % 8], cx + AW - x)
-    h = random_h[k % 8]
-    top = BLOCK - h
-    d.rectangle([p(x), p(top), p(x + w), p(BLOCK)], fill=(236, 228, 212), outline=SKY, width=2)
-    if k % 3 != 1:                      # pitched tile roof
-        d.polygon([(p(x - 6), p(top)), (p(x + 14), p(top - 46)), (p(x + w - 14), p(top - 46)), (p(x + w + 6), p(top))],
-                  fill=(226, 206, 190), outline=SKY)
-        for j in range(1, 4):
-            yy = top - 46 * j / 4
-            d.line([(p(x - 6 + 20 * j / 4), p(yy)), (p(x + w + 6 - 20 * j / 4), p(yy))], fill=SKY, width=1)
-    else:                               # flat parapet with a small pediment
-        d.line([(p(x - 6), p(top)), (p(x + w + 6), p(top))], fill=SKY, width=3)
-        d.line([(p(x + w / 2 - 30), p(top)), (p(x + w / 2), p(top - 26)), (p(x + w / 2 + 30), p(top))], fill=SKY, width=2)
-    # shuttered windows
-    for fy in range(top + 34, BLOCK - 130, 86):
-        for wx in (x + w * 0.28, x + w * 0.72):
-            d.rectangle([p(wx - 13), p(fy), p(wx + 13), p(fy + 44)], outline=SKY, width=2)
-            d.line([(p(wx), p(fy)), (p(wx), p(fy + 44))], fill=SKY, width=1)
-    d.line([(p(x + 12), p(BLOCK - 62)), (p(x + w - 12), p(BLOCK - 62))], fill=SKY, width=2)
-    x += w
-    k += 1
-d.line([(p(cx - AW), p(BLOCK - 1)), (p(cx + AW), p(BLOCK - 1))], fill=INK2, width=3)
-
-# ---- below the block ----
-cf = font("PlayfairDisplay-Italic[wght].ttf", 46, 400)
-T.put(CA_DAO[0], cf, cx, BLOCK + 250, INK2, anchor="c")
-T.put(CA_DAO[1], cf, cx, BLOCK + 318, INK2, anchor="c")
-T.put("— CA DAO —", font("BeVietnamPro-Light.ttf", 20), cx, BLOCK + 388, INK2, track=8, anchor="c")
+# ---- below the block: title + ca dao ----
+T.put("Nét thanh lịch", font("PlayfairDisplay[wght].ttf", 170, 400), cx, BLOCK + 220, INK, anchor="c")
+T.put("người Tràng An", font("PlayfairDisplay-Italic[wght].ttf", 140, 400), cx, BLOCK + 380, BRICK, anchor="c")
+cf = font("PlayfairDisplay-Italic[wght].ttf", 40, 400)
+T.put(CA_DAO[0], cf, cx, BLOCK + 500, INK2, anchor="c")
+T.put(CA_DAO[1], cf, cx, BLOCK + 558, INK2, anchor="c")
+T.put("— CA DAO —", font("BeVietnamPro-Light.ttf", 20), cx, BLOCK + 616, INK2, track=8, anchor="c")
 
 by = 3150
 d.line([(p(M), p(by)), (p(W - M), p(by))], fill=INK2, width=2)
@@ -141,6 +126,6 @@ T.put(NAMES[1], nf, M, by + 160, INK)
 T.put(CLASS, lf, W - M, by + 100, INK, anchor="r")
 T.put(SCHOOL, lf, W - M, by + 160, INK, anchor="r")
 d.line([(p(cx), p(by + 60)), (p(cx), p(by + 170))], fill=INK2, width=2)
-seal(img, cx + 600, BLOCK + 282, 100, (164, 58, 44), ["Tràng", "An"], font("PlayfairDisplay[wght].ttf", 23, 500))
+seal(img, cx + 560, BLOCK + 330, 100, (164, 58, 44), ["Tràng", "An"], font("PlayfairDisplay[wght].ttf", 23, 500))
 
 save(img, "C-cua-o", OUT_DIR.parent / "final")

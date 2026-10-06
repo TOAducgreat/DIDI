@@ -1,10 +1,14 @@
 """Poster: Nét thanh lịch người Tràng An — phong cách "Mặc Nguyệt"."""
 import math
 import random
+import sys
 from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "options"))
+from paint import lay, load, silk_tone  # noqa: E402
 
 FONT_DIR = Path(__file__).resolve().parent / "fonts"
 OUT = Path(__file__).resolve().parent / "final" / "0-mac-nguyet.png"
@@ -99,7 +103,7 @@ draw.line([(p(M), p(282)), (p(W - M), p(282))], fill=INK3, width=p(1))
 
 # ---------- the window / moon ----------
 cx, cy = W / 2, 1330
-R_OUT, R_IN = 740, 372
+R_OUT, R_IN = 790, 540
 
 # faint moon wash behind
 wash = Image.new("L", (CW, CH), 0)
@@ -152,59 +156,16 @@ for k in range(12):
     draw.text((p(x), p(y)), label, font=numf, fill=INK3, anchor="mm")
 
 
-# ---------- lotus (sen Hồ Tây), hairline ----------
-def lens(base_xy, length, width, angle, col, w=1, steps=60):
-    bx, by = base_xy
-    ca, sa = math.cos(angle), math.sin(angle)
-    left, right = [], []
-    for j in range(steps + 1):
-        t = j / steps
-        along = length * t
-        half = width * math.sin(math.pi * t) ** 0.85 * (1 - 0.25 * t)
-        for side, arr in ((1, left), (-1, right)):
-            lx, ly = along, side * half
-            arr.append((p(bx + lx * ca - ly * sa), p(by + lx * sa + ly * ca)))
-    draw.line(left + right[::-1], fill=col, width=w * S, joint="curve")
-
-
-lb = (cx, cy + 172)
-petals = [(-90, 300, 64), (-64, 262, 58), (-116, 262, 58),
-          (-40, 210, 52), (-140, 210, 52), (-18, 150, 42), (-162, 150, 42)]
-
-
-def lens_pts(base_xy, length, width, angle, steps=60):
-    bx, by = base_xy
-    ca, sa = math.cos(angle), math.sin(angle)
-    left, right = [], []
-    for j in range(steps + 1):
-        t = j / steps
-        half = width * math.sin(math.pi * t) ** 0.85 * (1 - 0.25 * t)
-        for side, arr in ((1, left), (-1, right)):
-            lx, ly = length * t, side * half
-            arr.append((p(bx + lx * ca - ly * sa), p(by + lx * sa + ly * ca)))
-    return left + right[::-1]
-
-
-# soft lotus-pink wash, deepest toward the petal tips
-pink = Image.new("L", (CW, CH), 0)
-pd = ImageDraw.Draw(pink)
-for deg, L, Wd in petals:
-    pd.polygon(lens_pts(lb, L, Wd, math.radians(deg)), fill=70)
-    pd.polygon(lens_pts((lb[0] + math.cos(math.radians(deg)) * L * 0.45, lb[1] + math.sin(math.radians(deg)) * L * 0.45),
-                        L * 0.55, Wd * 0.7, math.radians(deg)), fill=150)
-pink = pink.filter(ImageFilter.GaussianBlur(p(5)))
-img.paste(Image.new("RGB", (CW, CH), LOTUS), (0, 0), pink)
+# ---------- the painting inside the window: đàn tranh bên sen ----------
+src = load("dan-tranh.png")
+bg = silk_tone(src, (100, 100, 600, 500))
+pr = R_IN - 72                                  # painted disc radius
+art = src.crop((0, 780, 1116, 1896)).resize((p(2 * pr), p(2 * pr)), Image.LANCZOS)
+disc = Image.new("L", art.size, 0)
+ImageDraw.Draw(disc).ellipse([p(14), p(14), art.width - p(14), art.height - p(14)], fill=255)
+disc = disc.filter(ImageFilter.GaussianBlur(p(12)))
+lay(img, art, int(p(cx - pr)), int(p(cy - pr)), disc, bg)
 draw = ImageDraw.Draw(img)
-for deg, L, Wd in petals:
-    for k, (sc, col) in enumerate(((1.0, INK), (0.82, INK2), (0.64, INK3))):
-        lens(lb, L * sc, Wd * sc, math.radians(deg), col)
-
-# a single seed-line beneath — water
-for k in range(5):
-    y = cy + 196 + k * 13
-    half = 200 - k * 36
-    col = (INK2, INK3, INK3, MIST, MIST)[k]
-    draw.line([(p(cx - half), p(y)), (p(cx + half), p(y))], fill=col, width=S)
 
 # ---------- vertical marginal text ----------
 def vertical(t, f, x, y_center, fill, track):
