@@ -157,7 +157,7 @@ def hero(doc):
     far_pal = [("#d3dcc2", "#b9c9a9", "#9fb492"), ("#cdd8bc", "#b0c3a0", "#97ae8b")]
     near_pal = [("#b7cc8f", "#86a96a", "#5a8452"), ("#a9c486", "#78a065", "#4f7a4c"), ("#c1d197", "#93b173", "#668e58")]
     out.append(scene.tree_band(doc, 1180, W + 100, HORIZON - 10, rnd, far_pal, 230, op=0.9, step=150))
-    tower = scene.thap_rua(doc, 1990, HORIZON + 4, 0.74)
+    tower = scene.thap_rua(doc, 1980, HORIZON + 6, 0.62)
     out.append(scene.lake(doc, 0, W, HORIZON, EDGE, rnd))
     out.append(scene.reflection(tower, HORIZON + 10, op=0.2))
     out.append(scene.tree_band(doc, 1120, W + 100, HORIZON + 8, rnd, near_pal, 150, op=1, step=200))
@@ -171,9 +171,9 @@ def hero(doc):
     for x, w in ((1000, 150), (1250, 150), (1650, 230)):
         out.append(f'<ellipse cx="{x}" cy="{GROUND + 4}" rx="{w}" ry="18" fill="#6d5b44" opacity="0.18" filter="{sh}"/>')
     # the story: two students bow to the flower seller
-    out.append(figures.place(figures.schoolgirl(doc, 0, bow=22), 990, GROUND, 1.0))
-    out.append(figures.place(figures.schoolgirl(doc, 1, bow=18), 1250, GROUND + 6, 1.0))
-    out.append(figures.place(figures.old_woman(doc), 1740, GROUND + 2, 1.02, mirror=True))
+    out.append(figures.place(figures.schoolgirl(doc, 0, bow=30), 1000, GROUND, 1.0))
+    out.append(figures.place(figures.schoolgirl(doc, 1, bow=25), 1260, GROUND + 6, 1.0))
+    out.append(figures.place(figures.old_woman(doc), 1760, GROUND + 2, 0.94, mirror=True))
     # hoa sữa canopy over the top-left of the scene
     out.append(flora.hoa_sua_branch(doc, -60, HT + 40, 900, 0.18, seed=5, scale=1.0, droop=0.25))
     out.append(flora.hoa_sua_branch(doc, -40, HT + 260, 620, 0.05, seed=8, scale=0.85, droop=0.4))

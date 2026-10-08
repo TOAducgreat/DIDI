@@ -86,63 +86,104 @@ def tree_band(doc, x0, x1, base, rnd, palettes, height, op=1.0, step=170):
 
 
 # ---------------------------------------------------------------- Tháp Rùa
-def thap_rua(doc, cx, base, s):
-    """Turtle Tower, front view with a lit front face and shaded right side (3D-ish)."""
-    wall_l = doc.lin([(0, "#efe6d4"), (1, "#d8cdb6")], x1=0, y1=0, x2=1, y2=1)
-    wall_s = "#b9ad97"
-    arch = doc.lin([(0, "#4d5552"), (1, "#2f3634")])
-    trim = "#f4ecdc"
-    moss = "#8fa076"
+def _ogive(x0, x1, yb, ys, yt):
+    """Pointed (Gothic) arch opening: sides up to ys, two curves meeting at yt."""
+    xm = (x0 + x1) / 2
+    k = (ys - yt) * 0.55
+    return (f"M{f(x0)},{f(yb)} L{f(x0)},{f(ys)} C{f(x0)},{f(ys - k)} {f(xm - (x1 - x0) * 0.18)},{f(yt + 4)} {f(xm)},{f(yt)} "
+            f"C{f(xm + (x1 - x0) * 0.18)},{f(yt + 4)} {f(x1)},{f(ys - k)} {f(x1)},{f(ys)} L{f(x1)},{f(yb)} Z")
+
+
+def thap_rua(doc, cx, base, s, rnd_seed=4):
+    """Turtle Tower seen at 3/4: lit front face, shaded side face, Gothic arches, balustrades,
+    round window on the third tier and a small pavilion with a double curved roof on top."""
+    rnd = random.Random(rnd_seed)
+    front = doc.lin([(0, "#ece4d2"), (0.6, "#e2d8c3"), (1, "#cfc3aa")])
+    side = doc.lin([(0, "#bdb19a"), (1, "#a59882")])
+    dark = doc.lin([(0, "#3f4644"), (1, "#262c2b")])
+    trim, trim_s = "#f3ecdc", "#cfc4ac"
+    moss = "#7f9468"
     out = []
+    SK = 0.28                                    # side face width ratio (perspective)
+    LIFT = 0.0                                  # side face recedes upward
 
-    def tier(x0, x1, y0, y1, side=14):
-        X0, X1 = cx + x0 * s, cx + x1 * s
-        Y0, Y1 = base - y1 * s, base - y0 * s
-        out.append(rect(X0, Y0, X1 - X0, Y1 - Y0, wall_l))
-        out.append(rect(X1 - side * s, Y0, side * s, Y1 - Y0, wall_s, 0.75))
+    def X(u):
+        return cx + u * s
 
-    def cornice(x0, x1, y, h=12):
-        X0, X1 = cx + x0 * s, cx + x1 * s
-        out.append(rect(X0, base - (y + h) * s, X1 - X0, h * s, trim))
-        out.append(rect(X0, base - y * s - 3 * s, X1 - X0, 3 * s, "#a99c86", 0.8))
-        out.append(rect(X0 + 6 * s, base - (y + h) * s - 4 * s, X1 - X0 - 12 * s, 4 * s, moss, 0.7))
+    def Y(v):
+        return base - v * s
 
-    def arch_open(xc, y0, w, h):
-        x0 = cx + (xc - w / 2) * s
-        x1 = cx + (xc + w / 2) * s
-        yb = base - y0 * s
-        yt = base - (y0 + h) * s
-        r = w / 2 * s
-        d = f"M{f(x0)},{f(yb)} L{f(x0)},{f(yt + r)} A{f(r)},{f(r)} 0 0 1 {f(x1)},{f(yt + r)} L{f(x1)},{f(yb)} Z"
-        out.append(P(d, arch))
-        out.append(L(f"M{f(x0 - 4 * s)},{f(yb)} L{f(x0 - 4 * s)},{f(yt + r)} A{f(r + 4 * s)},{f(r + 4 * s)} 0 0 1 {f(x1 + 4 * s)},{f(yt + r)} L{f(x1 + 4 * s)},{f(yb)}",
-                     trim, 3 * s))
+    def block(w, y0, y1, arches=(), side_arches=0, round_win=False):
+        hw = w / 2
+        sw = w * SK
+        # front face
+        out.append(rect(X(-hw), Y(y1), w * s, (y1 - y0) * s, front))
+        # side face (parallelogram)
+        out.append(P(poly([(X(hw), Y(y0)), (X(hw + sw), Y(y0) - sw * LIFT * s), (X(hw + sw), Y(y1) - sw * LIFT * s), (X(hw), Y(y1))]), side))
+        # weathering streaks under the cornice
+        for _ in range(int(w / 26)):
+            xs = rnd.uniform(-hw + 6, hw - 6)
+            out.append(rect(X(xs), Y(y1), rnd.uniform(3, 9) * s, rnd.uniform(0.2, 0.6) * (y1 - y0) * s, "#8f8572", rnd.uniform(0.08, 0.18)))
+        h = y1 - y0
+        for xc, aw, ah in arches:
+            out.append(P(_ogive(X(xc - aw / 2 - 5), X(xc + aw / 2 + 5), Y(y0 + 6), Y(y0 + ah * 0.62), Y(y0 + ah + 8)), trim_s))
+            out.append(P(_ogive(X(xc - aw / 2), X(xc + aw / 2), Y(y0 + 6), Y(y0 + ah * 0.62), Y(y0 + ah)), dark))
+        for k in range(side_arches):                         # narrow arches on the receding face
+            t = (k + 0.5) / side_arches
+            xa = hw + sw * t
+            lift = sw * t * LIFT
+            aw = w * SK / side_arches * 0.45
+            out.append(P(_ogive(X(xa - aw / 2), X(xa + aw / 2), Y(y0 + 6) - lift * s, Y(y0 + h * 0.5) - lift * s, Y(y0 + h * 0.78) - lift * s), "#2b3130", 0.85))
+        if round_win:
+            out.append(f'<circle cx="{f(X(0))}" cy="{f(Y(y0 + h * 0.55))}" r="{f(h * 0.3 * s)}" fill="{trim_s}"/>')
+            out.append(f'<circle cx="{f(X(0))}" cy="{f(Y(y0 + h * 0.55))}" r="{f(h * 0.24 * s)}" fill="{dark}"/>')
+        # pilasters at the corners
+        for u in (-hw, hw - 8):
+            out.append(rect(X(u), Y(y1), 8 * s, h * s, trim, 0.7))
 
-    tier(-160, 160, 0, 170, 22)
-    for xc, w in ((-104, 44), (-34, 50), (34, 50), (104, 44)):
-        arch_open(xc, 18, w, 108 if abs(xc) < 60 else 96)
-    cornice(-176, 176, 170)
-    tier(-116, 116, 182, 300, 18)
-    for xc in (-58, 0, 58):
-        arch_open(xc, 200, 34, 74)
-    cornice(-130, 130, 300)
-    tier(-78, 78, 312, 400, 14)
-    out.append(f'<circle cx="{f(cx)}" cy="{f(base - 356 * s)}" r="{f(22 * s)}" fill="{arch}"/>')
-    out.append(f'<circle cx="{f(cx)}" cy="{f(base - 356 * s)}" r="{f(26 * s)}" fill="none" stroke="{trim}" stroke-width="{f(3 * s)}"/>')
-    for xc in (-48, 48):
-        arch_open(xc, 330, 20, 46)
-    cornice(-92, 92, 400)
-    tier(-48, 48, 412, 462, 10)
-    arch_open(0, 420, 22, 34)
-    # crowning roof with upturned eaves
-    roof = [(cx - 82 * s, base - 462 * s), (cx - 96 * s, base - 476 * s), (cx - 50 * s, base - 490 * s),
-            (cx, base - 516 * s), (cx + 50 * s, base - 490 * s), (cx + 96 * s, base - 476 * s), (cx + 82 * s, base - 462 * s)]
-    out.append(P(smooth(roof), doc.lin([(0, "#7c7468"), (1, "#5b544b")])))
-    out.append(rect(cx - 3 * s, base - 556 * s, 6 * s, 42 * s, "#5b544b"))
-    out.append(f'<circle cx="{f(cx)}" cy="{f(base - 560 * s)}" r="{f(8 * s)}" fill="#5b544b"/>')
-    # moss/grass islet
-    isl = doc.lin([(0, "#9fb27f"), (1, "#6f8a5d")])
-    out.append(P(smooth(ellipse_pts(cx, base + 6 * s, 300 * s, 34 * s, n=20, wob=0.05, seed=2)), isl))
+    def cornice(w, y, rail=True):
+        hw = w / 2 + 10
+        sw = (w + 20) * SK
+        out.append(rect(X(-hw), Y(y + 12), (2 * hw) * s, 12 * s, trim))
+        out.append(P(poly([(X(hw), Y(y)), (X(hw + sw), Y(y) - sw * LIFT * s), (X(hw + sw), Y(y + 12) - sw * LIFT * s), (X(hw), Y(y + 12))]), trim_s))
+        out.append(rect(X(-hw), Y(y + 1), (2 * hw) * s, 3 * s, "#9c917c", 0.7))
+        out.append(rect(X(-hw + 4), Y(y + 15), (2 * hw - 8) * s, 3 * s, moss, 0.75))
+        if rail:                                                # little balustrade
+            out.append(rect(X(-hw + 6), Y(y + 30), (2 * hw - 12) * s, 3 * s, trim))
+            for k in range(int((2 * hw - 12) / 14) + 1):
+                out.append(rect(X(-hw + 6 + k * 14), Y(y + 30), 3 * s, 16 * s, trim, 0.9))
+
+    block(300, 0, 150, arches=((-96, 46, 104), (0, 60, 122), (96, 46, 104)), side_arches=2)
+    cornice(300, 150)
+    block(220, 180, 280, arches=((-64, 34, 70), (0, 40, 78), (64, 34, 70)), side_arches=2)
+    cornice(220, 280)
+    block(150, 310, 390, arches=((-50, 22, 46), (50, 22, 46)), side_arches=1, round_win=True)
+    cornice(150, 390)
+    block(78, 420, 466, arches=((0, 26, 38),), side_arches=1)
+    # double curved roof of the crowning pavilion, upturned eaves
+    roof_d = doc.lin([(0, "#6f6a5f"), (1, "#4d4941")])
+    for y, w, h in ((466, 132, 34), (500, 96, 46)):
+        hw = w / 2
+        e = w * SK * 0.5
+        pts = [(X(-hw - 10), Y(y)), (X(-hw - 30), Y(y + 22)), (X(-hw - 4), Y(y + 14)), (X(-hw * 0.4), Y(y + h * 0.75)),
+               (X(e * 0.3), Y(y + h)), (X(hw * 0.4 + e), Y(y + h * 0.75)), (X(hw + 4 + e), Y(y + 14)), (X(hw + 30 + e), Y(y + 22)),
+               (X(hw + 10 + e), Y(y))]
+        out.append(P(smooth(pts, tension=0.6), roof_d))
+        out.append(L(smooth([(X(-hw - 12), Y(y + 6)), (X(0), Y(y + h * 0.45)), (X(hw + 12 + w * SK * 0.4), Y(y + 6) - 5 * s)], closed=False),
+                     "#8d877a", 2.5 * s, 0.8))
+    out.append(rect(X(e * 0.3 - 2.5), Y(586), 5 * s, 44 * s, "#4d4941"))
+    out.append(f'<circle cx="{f(X(e * 0.3))}" cy="{f(Y(588))}" r="{f(7 * s)}" fill="#4d4941"/>')
+    # moss and small plants on the ledges
+    for y, w in ((150, 300), (280, 220), (390, 150)):
+        for _ in range(4):
+            u = rnd.uniform(-w / 2, w / 2)
+            out.append(P(smooth(ellipse_pts(X(u), Y(y + 18), rnd.uniform(6, 14) * s, rnd.uniform(4, 8) * s, n=10, wob=0.2, seed=rnd.random())), moss, 0.85))
+    # islet: grassy mound, shrubs and a few trees around the base
+    isl = doc.lin([(0, "#a7b986"), (1, "#6f8a5d")])
+    out.insert(0, P(smooth(ellipse_pts(X(40), Y(-6), 330 * s, 40 * s, n=22, wob=0.05, seed=2)), isl))
+    shrub_pal = ("#b7cc8f", "#86a96a", "#5a8452")
+    for u, w, h in ((-250, 120, 120), (-190, 90, 80), (300, 130, 150), (240, 90, 90)):
+        out.insert(1, tree_cluster(doc, X(u), Y(-4), w * s, h * s, shrub_pal, rnd, n=7))
     return "".join(out)
 
 
