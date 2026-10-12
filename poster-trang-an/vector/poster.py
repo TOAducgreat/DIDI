@@ -4,6 +4,7 @@ import random
 
 from PIL import ImageFont
 
+import assets_kit as ak
 import figures
 import flora
 import scene
@@ -85,16 +86,18 @@ def note(doc, x, y, w, h, lines, rot, seed, size=62):
     doc.add(f'<g transform="rotate({rot},{f(cx)},{f(cy)})">{"".join(body)}</g>')
 
 
-def lotus_mark(doc, cx, cy, s=1.0, col=SON):
-    out = []
-    for deg, ln in ((-60, 0.7), (60, 0.7), (-28, 0.9), (28, 0.9), (0, 1.0)):
-        a = math.radians(-90 + deg)
-        ca, sa = math.cos(a), math.sin(a)
-        pts = [(cx + (u * ca - v * sa) * s, cy + (u * sa + v * ca) * s)
-               for u, v in ((0, 0), (14 * ln, 9), (34 * ln, 6), (42 * ln, 0), (34 * ln, -6), (14 * ln, -9))]
-        out.append(L(smooth(pts), col, 2.2))
-    out.append(L(f"M{f(cx - 44 * s)},{f(cy + 4 * s)} Q{f(cx)},{f(cy + 16 * s)} {f(cx + 44 * s)},{f(cy + 4 * s)}", col, 2.2))
-    doc.add("".join(out))
+_SYM = {}
+
+
+def _sym(doc, key):
+    if key not in _SYM:
+        _SYM[key] = ak.khue_van_cac(doc) if key == "kvc" else ak.symbol(doc, "sen-hoa-van.svg", fill=key)
+    return _SYM[key]
+
+
+def lotus_mark(doc, cx, cy, s=1.0, col=SON, op=0.9):
+    sid, vb = _sym(doc, col)
+    doc.add(ak.use(sid, vb, cx, cy, 120 * s, op=op))
 
 
 # ---------------------------------------------------------------- icons for the four values
@@ -118,20 +121,28 @@ def icon_daisy(doc, cx, cy, s=1.0):
 
 
 def icon_khue_van_cac(doc, cx, cy, s=1.0):
-    red = doc.lin([(0, "#c4553c"), (1, "#963726")])
-    out = [P(f"M{f(cx - 70 * s)},{f(cy - 40 * s)} L{f(cx + 70 * s)},{f(cy - 40 * s)} L{f(cx + 70 * s)},{f(cy + 30 * s)} L{f(cx - 70 * s)},{f(cy + 30 * s)} Z", red)]
-    out.append(f'<circle cx="{f(cx)}" cy="{f(cy - 5 * s)}" r="{f(26 * s)}" fill="#f4e7cc"/>')
-    for k in range(12):
-        a = math.pi * 2 * k / 12
-        out.append(L(f"M{f(cx)},{f(cy - 5 * s)} L{f(cx + math.cos(a) * 24 * s)},{f(cy - 5 * s + math.sin(a) * 24 * s)}", "#963726", 2))
-    for rx, ry, top in ((96, 18, -40), (84, 14, -80)):
-        out.append(P(smooth([(cx - rx * s, cy + (top + 2) * s), (cx - (rx - 20) * s, cy + (top - ry) * s), (cx, cy + (top - ry - 8) * s),
-                             (cx + (rx - 20) * s, cy + (top - ry) * s), (cx + rx * s, cy + (top + 2) * s), (cx + rx * s - 10, cy + (top + 8) * s),
-                             (cx - rx * s + 10, cy + (top + 8) * s)], tension=0.6), "#8f3324"))
-    out.append(P(f"M{f(cx - 44 * s)},{f(cy - 80 * s)} L{f(cx + 44 * s)},{f(cy - 80 * s)} L{f(cx + 44 * s)},{f(cy - 52 * s)} L{f(cx - 44 * s)},{f(cy - 52 * s)} Z", red))
-    for x in (-60, -20, 20, 60):
-        out.append(P(f"M{f(cx + (x - 9) * s)},{f(cy + 30 * s)} L{f(cx + (x + 9) * s)},{f(cy + 30 * s)} L{f(cx + (x + 9) * s)},{f(cy + 86 * s)} L{f(cx + (x - 9) * s)},{f(cy + 86 * s)} Z", "#e8dcc4"))
-    doc.add("".join(out))
+    sid, vb = _sym(doc, "kvc")
+    sh = doc.blur(6)
+    doc.add(f'<ellipse cx="{f(cx)}" cy="{f(cy + 92 * s)}" rx="{f(80 * s)}" ry="{f(8 * s)}" fill="#6d5b44" opacity="0.18" filter="{sh}"/>')
+    doc.add(ak.use(sid, vb, cx, cy, 150 * s))
+
+
+def icon_sun_lake(doc, cx, cy, s=1.0):
+    g = doc.rad([(0, "#fbe2a6"), (1, "#f2c46c")])
+    doc.add(f'<circle cx="{f(cx)}" cy="{f(cy)}" r="{f(30 * s)}" fill="{g}"/>')
+    for k in range(3):
+        y = cy + (34 + k * 14) * s
+        w = (90 - k * 22) * s
+        doc.add(L(f"M{f(cx - w)},{f(y)} Q{f(cx - w / 2)},{f(y - 6 * s)} {f(cx)},{f(y)} T{f(cx + w)},{f(y)}", "#6f978e", 3.2 * s))
+
+
+def icon_bouquet(doc, cx, cy, s=1.0):
+    for dx in (-14, 0, 14):
+        doc.add(L(f"M{f(cx + dx * s)},{f(cy)} L{f(cx + dx * 0.3 * s)},{f(cy + 70 * s)}", "#6f8e55", 3 * s))
+    for (dx, dy, r) in ((-26, -10, 20), (0, -26, 22), (24, -8, 20), (-6, 6, 18), (14, 10, 16)):
+        doc.add(flora.daisy(cx + dx * s, cy + dy * s, r * s))
+    doc.add(P(f"M{f(cx - 24 * s)},{f(cy + 30 * s)} L{f(cx + 24 * s)},{f(cy + 30 * s)} L{f(cx + 10 * s)},{f(cy + 76 * s)} L{f(cx - 10 * s)},{f(cy + 76 * s)} Z", "#d9b06c"))
+    doc.add(L(f"M{f(cx - 22 * s)},{f(cy + 44 * s)} L{f(cx + 22 * s)},{f(cy + 44 * s)}", SON, 3 * s))
 
 
 def icon_tea(doc, cx, cy, s=1.0):
@@ -162,18 +173,52 @@ def hero(doc):
     out.append(scene.reflection(tower, HORIZON + 10, op=0.2))
     out.append(scene.tree_band(doc, 1120, W + 100, HORIZON + 8, rnd, near_pal, 150, op=1, step=200))
     out.append(tower)
+    # sun glitter on the water, under the sun
+    for k in range(26):
+        y = HORIZON + 30 + k * 13
+        w = 30 + k * 7 + rnd.uniform(-10, 10)
+        x = 1880 + rnd.uniform(-20, 20)
+        out.append(L(f"M{f(x - w)},{f(y)} L{f(x + w)},{f(y)}", "#fbe3a8", rnd.uniform(3, 6), 0.75 - k * 0.022))
     out.append(scene.embankment(doc, 0, W, EDGE, HB - EDGE + 40))
     out.append(scene.old_house(doc, -20, 640, 1130, EDGE + 40, rnd))
     out.append(scene.bicycle(doc, 470, GROUND - 20, 0.95,
                              lambda d, cx, top, w, h: flora.daisy_heap(d, cx, top, w, h, seed=4, size=0.85)))
     # soft cast shadows on the pavement
     sh = doc.blur(10)
-    for x, w in ((1000, 150), (1250, 150), (1650, 230)):
+    for x, w in ((910, 190), (1210, 190), (1690, 280)):
         out.append(f'<ellipse cx="{x}" cy="{GROUND + 4}" rx="{w}" ry="18" fill="#6d5b44" opacity="0.18" filter="{sh}"/>')
     # the story: two students bow to the flower seller
-    out.append(figures.place(figures.schoolgirl(doc, 0, bow=30), 1000, GROUND, 1.0))
-    out.append(figures.place(figures.schoolgirl(doc, 1, bow=25), 1260, GROUND + 6, 1.0))
-    out.append(figures.place(figures.old_woman(doc), 1760, GROUND + 2, 0.94, mirror=True))
+    out.append(figures.place(figures.schoolgirl(doc, 0, bow=30), 900, GROUND, 1.24))
+    out.append(figures.place(figures.schoolgirl(doc, 1, bow=25), 1215, GROUND + 8, 1.24))
+    out.append(figures.place(figures.old_woman(doc), 1750, GROUND + 4, 1.14, mirror=True))
+    # weeping willow: one arching branch from the top-right, strands swaying in the breeze
+    branch = [(W + 40, HT - 80), (W - 120, HT - 30), (W - 260, HT + 10), (W - 400, HT + 70)]
+    out.append(L(smooth(branch, closed=False), "#6a5a48", 12, 0.9))
+    out.append(L(smooth(branch, closed=False), "#8a7a5c", 4, 0.7))
+    for k in range(15):
+        t = (k + 0.5) / 15
+        bx = W + 40 - 440 * t + rnd.uniform(-10, 10)
+        by = HT - 80 + 150 * t * t
+        ln = rnd.uniform(260, 560) * (1.1 - 0.4 * t)
+        sway = rnd.uniform(-40, -10)
+        pts = [(bx, by), (bx + sway * 0.3, by + ln * 0.35), (bx + sway * 0.8, by + ln * 0.7), (bx + sway, by + ln)]
+        out.append(L(smooth(pts, closed=False), "#7d8a5e", 1.6, 0.6))
+        n = int(ln / 30)
+        for j in range(1, n):
+            u = j / n
+            px = bx + sway * u ** 1.2 + rnd.uniform(-2, 2)
+            py = by + ln * u
+            col = rnd.choice(["#9fbf7f", "#86a96a", "#b3cc8c", "#7fa564"])
+            side = rnd.choice([1.25, 1.9])
+            out.append(flora.leaf(doc, px, py, rnd.uniform(24, 36) * (1 - 0.3 * u), 4.5, side, c_light=col, c_dark="#5f8a52", vein=False))
+    # drifting hoa sữa petals and a few falling leaves
+    for _ in range(26):
+        px, py = rnd.uniform(500, 2300), rnd.uniform(HT + 60, HORIZON + 200)
+        r = rnd.uniform(5, 9)
+        out.append(P(smooth(ellipse_pts(px, py, r, r * 0.55, n=8, rot=rnd.uniform(0, 3))), "#fbf6e6", 0.9))
+    for _ in range(6):
+        out.append(flora.leaf(doc, rnd.uniform(700, 2100), rnd.uniform(HT + 100, HORIZON - 60), 30, 9, rnd.uniform(0, 6.2),
+                              c_light="#d9b45c", c_dark="#b98a3c", vein=False))
     # hoa sữa canopy over the top-left of the scene
     out.append(flora.hoa_sua_branch(doc, -60, HT + 40, 900, 0.18, seed=5, scale=1.0, droop=0.25))
     out.append(flora.hoa_sua_branch(doc, -40, HT + 260, 620, 0.05, seed=8, scale=0.85, droop=0.4))
@@ -211,7 +256,7 @@ def build():
     doc.text(cx, 800, "TIẾP NỐI NẾP TRÀNG AN", 46, "BeVN", SON, weight=500, ls=16)
     rule(doc, cx - 1000, cx - 560, 786)
     rule(doc, cx + 560, cx + 1000, 786)
-    lotus_mark(doc, cx, 852, 0.9)
+    lotus_mark(doc, cx, 850, 0.95)
     doc.text(cx, 925, "Nghìn năm văn hiến hun đúc nên nét thanh lịch – tuổi trẻ hôm nay tiếp nối", 42, "Playfair", INK, style="italic")
     doc.text(cx, 980, "bằng lời hay, ý đẹp và những việc làm tử tế.", 42, "Playfair", INK, style="italic")
 
@@ -236,6 +281,7 @@ def build():
     for i, (no, head, body) in enumerate(story):
         x = 170 + i * (colw + 90)
         doc.text(x, sy + 120, no, 96, "Hand", SON, anchor="start", weight=700)
+        (icon_sun_lake, lambda d, a, b, s: lotus_mark(d, a, b, 1.1 * s), icon_bouquet)[i](doc, x + colw - 70, sy + 80, 0.9)
         doc.text(x + 160, sy + 104, head, 50, "Playfair", MOSS, anchor="start", style="italic", weight=600)
         para(doc, x, sy + 180, body, "BeVietnamPro-Light.ttf", "BeVN", 30, 46, colw, INK, weight=300)
         if i:
@@ -245,6 +291,8 @@ def build():
     vy = 2860
     doc.add(f'<rect x="150" y="{vy - 70}" width="{W - 300}" height="420" rx="18" fill="#f6eedb" opacity="0.65"/>')
     doc.text(cx, vy - 16, "NẾP TRÀNG AN HÔM NAY", 36, "BeVN", SON, weight=500, ls=12)
+    lotus_mark(doc, cx - 440, vy - 30, 0.42, SON, 0.75)
+    lotus_mark(doc, cx + 440, vy - 30, 0.42, SON, 0.75)
     vals = [
         (icon_ao_dai, "Ăn mặc chỉn chu", "Gọn gàng, giản dị, hợp hoàn cảnh – tôn trọng mình và người đối diện."),
         (icon_daisy, "Lời nói nhẹ nhàng", "Biết chào hỏi, cảm ơn, xin lỗi; nói khẽ nơi công cộng."),
@@ -260,7 +308,7 @@ def build():
 
     # ca dao + credits
     doc.text(cx, 3300, "“Chẳng thơm cũng thể hoa nhài, dẫu không thanh lịch cũng người Tràng An.”", 42, "Playfair", MOSS, style="italic")
-    lotus_mark(doc, cx, 3342, 0.6, SON)
+    lotus_mark(doc, cx, 3345, 0.55, SON)
     doc.text(cx, 3404, "Đặng Vũ Hà Châu  ·  Nguyễn Thụy Anh", 38, "Playfair", INK, weight=600)
     doc.text(cx, 3450, "Lớp 10 Chuyên Sử 1  ·  Trường THPT chuyên Hà Nội – Amsterdam", 28, "BeVN", INK2, weight=400, ls=2)
 
